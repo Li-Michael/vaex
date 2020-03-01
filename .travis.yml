@@ -49,6 +49,8 @@ before_install:
   - which pip
   - pip install python-dateutil==2.8.0  # botocore caps dateutil leading to issues
   - pip install -r requirements.txt
+  - pip install tensorflow>=2.1.0      # At least temporary until we find a better place for it
+  - pip install tensorflow-io>=0.12.0  # At least temporary until we find a better place for it
   # - pip install -r requirements-ml.txt
 install:
   - source activate test-environment

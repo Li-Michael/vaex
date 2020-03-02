@@ -22,7 +22,7 @@ class DataFrameAccessorTensorflow(object):
         output_types, output_shapes = arrow_schema_to_tensor_types(arrow_batch.schema)
         return output_types, output_shapes
 
-    def to_dataset(self, features, target=None, chunk_size=1024, repeat=None, shuffle=False, keras=False):
+    def to_dataset(self, features, target=None, chunk_size=1024, repeat=None, shuffle=False, as_dict=True):
 
         # Set up the iterator factory
         iterator_factory = partial(self._arrow_batch_generator, **{'features': features,
@@ -39,32 +39,31 @@ class DataFrameAccessorTensorflow(object):
                                                              record_batch_iter_factory=iterator_factory)
 
         # Reshape the data into the appropriate format
-        if keras:
-            if target is not None:
-                ds = ds.map(lambda *tensors: (tf.stack(tensors[:-1], axis=1), tensors[-1]))
-            else:
-                ds = ds.map(lambda *tensors: (tf.stack(tensors, axis=1)))
-        else:
+        if as_dict:
             if target is not None:
                 ds = ds.map(lambda *tensors: (dict(zip(features, tensors[:-1])), tensors[-1]))
             else:
                 ds = ds.map(lambda *tensors: (dict(zip(features, tensors))))
-
-        # Repeating and shuffling the dataset if needed
-        if shuffle:
-            ds = ds.shuffle(chunk_size)
-        if repeat is not None:
-            ds = ds.repeat(repeat)
+        else:
+            if target is not None:
+                ds = ds.map(lambda *tensors: (tf.stack(tensors[:-1], axis=1), tensors[-1]))
+            else:
+                ds = ds.map(lambda *tensors: (tf.stack(tensors, axis=1)))
 
         return ds
 
     def make_input_function(self, features, target=None, chunk_size=1024, repeat=None, shuffle=False):
         def tf_input_function():
-            return self.to_dataset(features=features,
-                                   target=target,
-                                   chunk_size=chunk_size,
-                                   repeat=repeat,
-                                   shuffle=shuffle)
+            ds = self.to_dataset(features=features,
+                                 target=target,
+                                 chunk_size=chunk_size,
+                                 repeat=repeat,
+                                 shuffle=shuffle)
+            if shuffle:
+                ds = ds.shuffle(chunk_size)
+            if repeat is not None:
+                ds = ds.repeat(repeat)
+
+            return ds
+
         return tf_input_function
-
-

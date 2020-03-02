@@ -95,20 +95,19 @@ def test_make_input_function_options(repeat, shuffle):
     assert len(list_ds) == num_batches  # The number of "batches" in the iterable, as defined by the chunk_size arg
 
 
-# def test_to_dataset_keras_model_train():
+def test_to_dataset_keras_model_train():
+    # Define the keras input functions
+    train_ds = df_train.ml.tensorflow.to_dataset(features=features, target=target, as_dict=False)
+    test_ds = df_test.ml.tensorflow.to_dataset(features=features, as_dict=False)
 
-#     # Define the keras input functions
-#     train_ds = df_train.ml.tensorflow.to_dataset(features=features, target=target, keras=True)
-#     test_ds = df_test.ml.tensorflow.to_dataset(features=features, keras=True)
+    # Defne a simple keras model
+    model = tf.keras.Sequential()
+    model.add(tf.keras.layers.Dense(units=4, input_shape=(4,), activation='relu'))
+    model.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+    model.compile(optimizer=tf.keras.optimizers.RMSprop(),
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
 
-#     # Defne a simple keras model
-#     model = tf.keras.Sequential()
-#     model.add(tf.keras.layers.Dense(units=4, input_shape=(4,), activation='relu'))
-#     model.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
-#     model.compile(optimizer=tf.keras.optimizers.RMSprop(),
-#                   loss='categorical_crossentropy',
-#                   metrics=['accuracy'])
-
-#     model.fit(train_ds)
-#     predictions = model.predict(test_ds)
-#     assert len(predictions) == len(df_test)
+    model.fit(train_ds)
+    predictions = model.predict(test_ds)
+    assert len(predictions) == len(df_test)

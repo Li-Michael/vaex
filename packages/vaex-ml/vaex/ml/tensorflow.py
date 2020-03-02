@@ -13,16 +13,38 @@ class DataFrameAccessorTensorflow(object):
         self.df = self.ml.df
 
     def _arrow_batch_generator(self, features, target=None, chunk_size=1024):
+        """Create a generator which yields arrow table batches, to use as datasoure for creating Tensorflow datasets.
+
+        :param features: A list of column names.
+        :param target: The dependent or target column, if any.
+        :param chunk_size: Number of samples per chunk of data.
+
+        Returns:
+        :return: generator that yields arrow table batches
+        """
         column_names = features + [target] if target is not None else features
         for i1, i2, table in self.df.to_arrow_table(column_names=column_names, chunk_size=chunk_size):
             yield table.to_batches(chunk_size)[0]
 
     @staticmethod
     def _get_batch_arrow_schema(arrow_batch):
+        """Get the schema from a arrow batch table."""
         output_types, output_shapes = arrow_schema_to_tensor_types(arrow_batch.schema)
         return output_types, output_shapes
 
-    def to_dataset(self, features, target=None, chunk_size=1024, repeat=None, shuffle=False, as_dict=True):
+    def to_dataset(self, features, target=None, chunk_size=1024, as_dict=True):
+        """Create a tensorflow Dataset object from a DataFrame, via Arrow.
+
+        :param features: A list of column names.
+        :param target: The dependent or target column, if any.
+        :param chunk_size: Number of samples per chunk of data.
+        :param as_dict: If True, the dataset will have the form of dictionary housing the tensors.
+        This is useful for making inputs directly for tensorflow. If False, the dataset will contain Tensors,
+        useful for passing the dataset as a datasource to a Keras model.
+
+        Returns:
+        :return ds: A tensorflow Dataset
+        """
 
         # Set up the iterator factory
         iterator_factory = partial(self._arrow_batch_generator, **{'features': features,
@@ -53,12 +75,20 @@ class DataFrameAccessorTensorflow(object):
         return ds
 
     def make_input_function(self, features, target=None, chunk_size=1024, repeat=None, shuffle=False):
+        """Create a tensorflow Dataset object from a DataFrame, via Arrow.
+
+        :param features: A list of column names.
+        :param target: The dependent or target column, if any.
+        :param chunk_size: Number of samples per chunk of data.
+        :param repeat: If not None, repeat the dataset as many times as specified.
+        :param shuffle: If True, the elements of the dataset are randomly shuffled. If shuffle is True and repeat is not None, the
+        dataset will first be shuffled and then repeated.
+
+        Returns:
+        :return ds: A tensorflow Dataset
+        """
         def tf_input_function():
-            ds = self.to_dataset(features=features,
-                                 target=target,
-                                 chunk_size=chunk_size,
-                                 repeat=repeat,
-                                 shuffle=shuffle)
+            ds = self.to_dataset(features=features, target=target, chunk_size=chunk_size)
             if shuffle:
                 ds = ds.shuffle(chunk_size)
             if repeat is not None:
